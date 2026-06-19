@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Calculador Solar — Sistema Fotovoltaico</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0e1c; --surface: #131a2e; --text: #f1f5f9;
+    --amber: #f5a623; --green: #22c55e; --muted: #8b96b3;
+    --red: #ef4444; --blue: #3b82f6; --line: #232b45;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, Segoe UI, Roboto, sans-serif; padding: 16px 14px 60px; }
+  h1 { color: var(--amber); text-align: center; font-size: 19px; margin: 4px 0 2px; }
+  .sub { color: var(--muted); text-align: center; font-size: 11.5px; margin-bottom: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+  .card h3 { color: var(--amber); font-size: 13.5px; margin: 0 0 10px; }
+  .card .hint { font-size: 10.5px; color: var(--muted); margin: 2px 0 8px; line-height: 1.4; }
+  label { color: var(--amber); font-size: 11px; font-weight: 600; display: block; margin-bottom: 5px; }
+  input, select { width: 100%; padding: 11px; background: #0c1224; color: var(--text); border: 1px solid #2c3556; border-radius: 9px; font-size: 14px; margin-bottom: 10px; }
+  input:focus, select:focus { outline: none; border-color: var(--amber); }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .btn { padding: 13px 14px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 13.5px; width: 100%; }
+  .btn-amber { background: var(--amber); color: #0a0a0a; }
+  .btn-blue { background: var(--blue); color: #fff; }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid #2c3556; }
+  .btn-red-outline { background: transparent; color: var(--red); border: 1px solid var(--red); }
+  .btn + .btn { margin-top: 8px; }
+  #map { height: 220px; border-radius: 10px; margin-bottom: 8px; }
+  .coords { font-size: 11px; color: var(--muted); text-align: center; margin-bottom: 8px; font-family: monospace; }
+  .aparato-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .aparato-item:last-child { border-bottom: none; }
+  .stepper { display: inline-flex; align-items: center; gap: 8px; background: #0c1224; border: 1px solid #2c3556; border-radius: 8px; padding: 3px 6px; }
+  .stepper button { background: none; border: none; color: var(--amber); font-size: 16px; width: 22px; height: 22px; }
+  .stepper span { min-width: 26px; text-align: center; font-size: 12.5px; font-family: monospace; }
+  .resultado { background: var(--surface); border: 2px solid var(--green); border-radius: 14px; padding: 16px; margin-top: 8px; display: none; }
+  .resultado h3 { color: var(--green); margin: 0 0 8px; font-size: 14px; }
+  .res-item { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+  .res-item:last-child { border-bottom: none; }
+  .res-val { color: var(--amber); font-weight: 700; text-align: right; }
+  .res-total { font-size: 17px; font-weight: 800; color: var(--green); text-align: center; padding: 12px 0 4px; margin-top: 6px; border-top: 2px solid var(--amber); }
+  .seccion-tit { color: var(--amber); font-size: 12px; font-weight: 700; margin: 12px 0 4px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .qr-box { text-align: center; padding: 12px 0; }
+  .qr-box canvas { background: #fff; border-radius: 8px; padding: 8px; }
+  .empresa { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .empresa:last-child { border-bottom: none; }
+  .empresa .nombre { font-size: 13px; font-weight: 600; }
+  .empresa .zona { font-size: 10.5px; color: var(--muted); }
+  .empresa a { color: var(--green); font-size: 11.5px; text-decoration: none; border: 1px solid var(--green); border-radius: 7px; padding: 6px 10px; }
+  .guardado-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+  .guardado-item:last-child { border-bottom: none; }
+  .guardado-item .meta { color: var(--muted); font-size: 10.5px; }
+  .guardado-item .acciones { display: flex; gap: 8px; }
+  .guardado-item .acciones span { cursor: pointer; font-size: 13px; }
+  .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--green); color: #fff; padding: 9px 18px; border-radius: 20px; font-size: 12px; opacity: 0; transition: opacity .3s; z-index: 3000; }
+  .toast.show { opacity: 1; }
+  .banner-compartido { background: rgba(245,166,35,0.12); border: 1px solid var(--amber); border-radius: 12px; padding: 12px; margin-bottom: 14px; font-size: 12px; color: var(--amber); text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>☀️ Calculador Solar</h1>
+<p class="sub">Sistema Fotovoltaico · Paneles → Controlador → Inversor → Baterías</p>
+
+<div id="bannerCompartido" class="banner-compartido" style="display:none;">
+  📨 Estás viendo un resultado compartido. Para hacer tu propio cálculo, desplázate abajo y presiona "Empezar de cero".
+</div>
+
+<!-- UBICACIÓN -->
+<div class="card">
+  <h3>🌍 Ubicación</h3>
+  <p class="hint">Toca el mapa para elegir tu ubicación, o usa tu GPS. De ahí calculamos las horas de sol pico (HSP).</p>
+  <button class="btn btn-blue" onclick="detectarUbicacion()">📍 Usar mi ubicación (GPS)</button>
+  <div id="map"></div>
+  <p class="coords" id="coordsTxt">Sin ubicación seleccionada — toca el mapa o usa el GPS</p>
+  <label>Horas de sol pico (HSP) — se ajusta sola, pero puedes corregirla</label>
+  <input type="number" id="hspManual" step="0.1" placeholder="Ej: 5.5" oninput="actualizarTodo()">
+</div>
+
+<!-- CONSUMO -->
+<div class="card">
+  <h3>⚡ Consumo Eléctrico</h3>
+  <label>Consumo mensual (kWh) — del recibo de luz</label>
+  <input type="number" id="consumoMensual" placeholder="Ej: 350" oninput="actualizarTodo()">
+  <p class="hint" id="consumoDiarioTxt">Consumo diario: — kWh</p>
+</div>
+
+<!-- APARATOS -->
+<div class="card">
+  <h3>🔌 Aparatos</h3>
+  <p class="hint">Marca cuántos tienes y cuántas horas al día los usas. Esto también sirve para estimar la carga simultánea del inversor.</p>
+  <div id="listaAparatos"></div>
+</div>
+
+<!-- PANEL SOLAR -->
+<div class="card">
+  <h3>📐 Panel Solar</h3>
+  <div class="row">
+    <div>
+      <label>Potencia (W)</label>
+      <select id="potenciaPanel" onchange="actualizarTodo()">
+        <option value="330">330 W</option>
+        <option value="400">400 W</option>
+        <option value="450" selected>450 W</option>
+        <option value="550">550 W</option>
+        <option value="650">650 W</option>
+      </select>
+    </div>
+    <div>
+      <label>Voltaje (Vmp)</label>
+      <select id="voltajePanel" onchange="actualizarTodo()">
+        <option value="37">37 V</option>
+        <option value="41" selected>41 V</option>
+        <option value="50">50 V</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- SISTEMA -->
+<div class="card">
+  <h3>⚙️ Tipo de Sistema</h3>
+  <div class="row">
+    <div>
+      <label>Sistema</label>
+      <select id="tipoSistema" onchange="actualizarTodo()">
+        <option value="red">Conectado a red (sin baterías)</option>
+        <option value="aislado" selected>Aislado (con baterías)</option>
+        <option value="hibrido">Híbrido (baterías + red)</option>
+      </select>
+    </div>
+    <div>
+      <label>Voltaje del sistema (V)</label>
+      <select id="voltajeSistema" onchange="actualizarTodo()">
+        <option value="12">12 V</option>
+        <option value="24">24 V</option>
+        <option value="48" selected>48 V</option>
+      </select>
+    </div>
+  </div>
+  <label>Carga simultánea máxima (W) — opcional</label>
+  <input type="number" id="cargaSimultanea" placeholder="Se estima con tus aparatos si lo dejas vacío" oninput="actualizarTodo()">
+</div>
+
+<!-- BATERÍAS -->
+<div class="card" id="cardBaterias">
+  <h3>🔋 Banco de Baterías</h3>
+  <div class="row">
+    <div>
+      <label>Voltaje unitario (V)</label>
+      <select id="voltajeBateria" onchange="actualizarTodo()">
+        <option value="12" selected>12 V</option>
+        <option value="24">24 V</option>
+      </select>
+    </div>
+    <div>
+      <label>Capacidad unitaria (Ah)</label>
+      <select id="capacidadBateria" onchange="actualizarTodo()">
+        <option value="100">100 Ah</option>
+        <option value="200" selected>200 Ah</option>
+        <option value="250">250 Ah</option>
+      </select>
+    </div>
+  </div>
+  <div class="row">
+    <div>
+      <label>Días de autonomía</label>
+      <select id="diasAutonomia" onchange="actualizarTodo()">
+        <option value="1">1 día</option>
+        <option value="2" selected>2 días</option>
+        <option value="3">3 días</option>
+      </select>
+    </div>
+    <div>
+      <label>Profundidad de descarga</label>
+      <select id="dod" onchange="actualizarTodo()">
+        <option value="0.95" selected>95% — Litio LiFePO4</option>
+        <option value="0.80">80% — Gel</option>
+        <option value="0.50">50% — Plomo-ácido</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<button class="btn btn-amber" onclick="calcularSistema()">☀️ CALCULAR SISTEMA COMPLETO</button>
+<button class="btn btn-outline" onclick="limpiarTodo()">🗑️ Limpiar</button>
+
+<!-- RESULTADOS -->
+<div class="resultado" id="resultadoCard">
+  <h3>📊 Resultados de tu sistema</h3>
+  <div id="resultadosContenido"></div>
+
+  <div class="seccion-tit">💾 Guardar y compartir</div>
+  <button class="btn btn-blue" onclick="guardarCalculo()">💾 Guardar este cálculo en mi teléfono</button>
+  <button class="btn btn-outline" onclick="generarQR()">🔗 Generar QR para compartir con un técnico</button>
+  <div class="qr-box" id="qrBox" style="display:none;">
+    <canvas id="qrCanvas"></canvas>
+    <p class="hint">El técnico escanea este código y ve tu resultado (no edita nada tuyo).</p>
+  </div>
+</div>
+
+<!-- REGISTRO DE EMPRESA -->
+<div class="card">
+  <h3>🏢 ¿Eres instalador o empresa? Regístrate</h3>
+  <p class="hint" id="estadoConexion">⚙️ Modo local: tu registro se guarda en este teléfono mientras conectamos la base de datos en la nube. No se pierde — en cuanto se active la conexión, se sincroniza solo.</p>
+  <label>Nombre de la empresa</label>
+  <input type="text" id="regNombre" placeholder="Ej: SolarTech Norte">
+  <label>Zona de cobertura</label>
+  <input type="text" id="regZona" placeholder="Ej: Sonora, Chihuahua">
+  <label>WhatsApp (con código de país, sin espacios)</label>
+  <input type="text" id="regWhatsapp" placeholder="Ej: 5216441234567">
+  <label>Correo de contacto (opcional)</label>
+  <input type="email" id="regCorreo" placeholder="Ej: contacto@empresa.com">
+  <button class="btn btn-amber" onclick="registrarEmpresa()">📩 Enviar solicitud de registro</button>
+</div>
+
+<!-- EMPRESAS REGISTRADAS -->
+<div class="card">
+  <h3>🏢 Empresas instaladoras registradas</h3>
+  <p class="hint">Envíales tu cálculo directo por WhatsApp.</p>
+  <div id="listaEmpresas"></div>
+</div>
+
+<!-- CÁLCULOS GUARDADOS -->
+<div class="card">
+  <h3>📁 Mis cálculos guardados (en este teléfono)</h3>
+  <div id="listaGuardados"><p class="hint">Aún no has guardado ningún cálculo.</p></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // =========================================================================
+  // CONEXIÓN A LA BASE DE DATOS EN LA NUBE (Google Sheet + Apps Script)
+  // -------------------------------------------------------------------------
+  // Por ahora esto está vacío y la página funciona 100% local (localStorage).
+  // El día que tengas tu Google Sheet + Apps Script publicado como Web App,
+  // pega aquí la URL que te da Google (termina en /exec) y todo se conecta
+  // solo — no hay que tocar nada más del código.
+  //
+  // Ejemplo: var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycb.../exec";
+  // =========================================================================
+  var APPS_SCRIPT_URL = ""; // <-- pega aquí tu URL cuando esté lista
+
+  // ---------- DATOS ----------
+  var APARATOS_BASE = [
+    { id: "foco", nombre: "Foco LED", watts: 10 },
+    { id: "tv", nombre: "Televisor", watts: 120 },
+    { id: "refri", nombre: "Refrigerador", watts: 150 },
+    { id: "lavadora", nombre: "Lavadora", watts: 500 },
+    { id: "compu", nombre: "Computadora", watts: 200 },
+    { id: "aire", nombre: "Aire acondicionado", watts: 1200 },
+    { id: "bomba", nombre: "Bomba de agua", watts: 750 },
+    { id: "microondas", nombre: "Microondas", watts: 1000 }
+  ];
+
+  var EMPRESAS_DEMO_YA_NO_USAR = []; // se mantiene vacío: ahora las empresas se registran ellas mismas
+
+  var aparatos = {}; // { id: { cant, horas } }
+  var lat = null, lng = null, map = null, marker = null;
+  var ultimoResultado = null;
+
+  // ---------- APARATOS UI ----------
+  function renderAparatos() {
+    var cont = document.getElementById('listaAparatos');
+    cont.innerHTML = '';
+    APARATOS_BASE.forEach(function(a) {
+      var st = aparatos[a.id] || { cant: 0, horas: 0 };
+      var div = document.createElement('div');
+      div.className = 'aparato-item';
+      div.innerHTML =
+        '<span>' + a.nombre + ' <small style="color:var(--muted)">(' + a.watts + 'W)</small></span>' +
+        '<span style="display:flex;gap:6px;">' +
+          stepperHtml(a.id, 'cant', st.cant, '') +
+          stepperHtml(a.id, 'horas', st.horas, 'h') +
+        '</span>';
+      cont.appendChild(div);
+    });
+  }
+
+  function stepperHtml(id, field, val, suf) {
+    return '<span class="stepper">' +
+      '<button onclick="cambiarAparato(\'' + id + '\',\'' + field + '\',-1)">−</button>' +
+      '<span>' + val + suf + '</span>' +
+      '<button onclick="cambiarAparato(\'' + id + '\',\'' + field + '\',1)">+</button>' +
+    '</span>';
+  }
+
+  function cambiarAparato(id, field, delta) {
+    if (!aparatos[id]) aparatos[id] = { cant: 0, horas: 0 };
+    aparatos[id][field] = Math.max(0, aparatos[id][field] + delta);
+    renderAparatos();
+    actualizarTodo();
+  }
+
+  // ---------- MAPA ----------
+  function initMap() {
+    map = L.map('map').setView([23.6345, -102.5528], 5); // centro de México por defecto
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+    map.on('click', function(e) {
+      setUbicacion(e.latlng.lat, e.latlng.lng);
+    });
+  }
+
+  function setUbicacion(la, ln) {
+    lat = la; lng = ln;
+    document.getElementById('coordsTxt').textContent = 'Lat ' + lat.toFixed(4) + ', Lng ' + lng.toFixed(4);
+    if (marker) map.removeLayer(marker);
+    marker = L.marker([lat, lng]).addTo(map);
+    map.setView([lat, lng], 9);
+    var hspEstimado = estimarHspPorLatitud(lat);
+    document.getElementById('hspManual').value = hspEstimado;
+    actualizarTodo();
+  }
+
+  function detectarUbicacion() {
+    if (!navigator.geolocation) { mostrarToast('⚠️ Tu navegador no soporta GPS'); return; }
+    mostrarToast('📍 Buscando tu ubicación...');
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      setUbicacion(pos.coords.latitude, pos.coords.longitude);
+      mostrarToast('✅ Ubicación detectada');
+    }, function() {
+      mostrarToast('⚠️ No se pudo obtener tu ubicación. Toca el mapa.');
+    }, { enableHighAccuracy: true, timeout: 8000 });
+  }
+
+  // Heurística simple: a menor latitud absoluta (más cerca del trópico/ecuador) más HSP.
+  // Esto es una aproximación general, no un dato satelital real (NASA POWER, etc).
+  function estimarHspPorLatitud(la) {
+    var abs = Math.abs(la);
+    if (abs < 15) return 5.8;
+    if (abs < 23.5) return 6.0;
+    if (abs < 30) return 5.5;
+    if (abs < 38) return 5.0;
+    if (abs < 45) return 4.3;
+    return 3.5;
+  }
+
+  // ---------- CÁLCULO EN VIVO (vista previa) ----------
+  function actualizarTodo() {
+    var mensual = parseFloat(document.getElementById('consumoMensual').value) || 0;
+    var diario = mensual / 30;
+    document.getElementById('consumoDiarioTxt').textContent = 'Consumo diario: ' + diario.toFixed(2) + ' kWh (' + (diario*1000).toFixed(0) + ' Wh)';
+
+    var tipo = document.getElementById('tipoSistema').value;
+    document.getElementById('cardBaterias').style.display = (tipo === 'red') ? 'none' : 'block';
+  }
+
+  function estimarCargaSimultanea() {
+    var pico = 0;
+    Object.keys(aparatos).forEach(function(id) {
+      var a = APARATOS_BASE.find(function(x){ return x.id === id; });
+      if (a) pico += a.watts * aparatos[id].cant;
+    });
+    return pico * 0.6;
+  }
+
+  // ---------- CÁLCULO COMPLETO ----------
+  function calcularSistema() {
+    var consumoMensual = parseFloat(document.getElementById('consumoMensual').value) || 0;
+    var totalAparatosWh = 0;
+    Object.keys(aparatos).forEach(function(id) {
+      var a = APARATOS_BASE.find(function(x){ return x.id === id; });
+      if (a) totalAparatosWh += a.watts * aparatos[id].cant * aparatos[id].horas;
+    });
+    var consumoDiarioWh = Math.max(consumoMensual * 1000 / 30, totalAparatosWh);
+    if (consumoDiarioWh <= 0) { mostrarToast('⚠️ Ingresa tu consumo o marca aparatos'); return; }
+
+    var hsp = parseFloat(document.getElementById('hspManual').value) || 5.0;
+    var potenciaPanel = parseFloat(document.getElementById('potenciaPanel').value);
+    var voltajePanel = parseFloat(document.getElementById('voltajePanel').value);
+    var corrientePanel = potenciaPanel / voltajePanel;
+    var FACTOR_SEGURIDAD = 1.3;
+
+    var potenciaNecesaria = (consumoDiarioWh * FACTOR_SEGURIDAD) / hsp;
+    var numPaneles = Math.ceil(potenciaNecesaria / potenciaPanel);
+    var potenciaInstalada = numPaneles * potenciaPanel;
+
+    var voltajeSistema = parseInt(document.getElementById('voltajeSistema').value);
+    var tipoSistema = document.getElementById('tipoSistema').value;
+    var corrienteArreglo = (potenciaInstalada / voltajeSistema) * 1.25;
+    var amperajeControladorBase = 60;
+    var numControladores = (tipoSistema === 'red') ? 0 : Math.ceil(corrienteArreglo / amperajeControladorBase);
+
+    var cargaSimultanea = parseFloat(document.getElementById('cargaSimultanea').value) || 0;
+    var cargaEraEstimada = false;
+    if (cargaSimultanea <= 0) { cargaSimultanea = estimarCargaSimultanea(); cargaEraEstimada = true; }
+    if (cargaSimultanea <= 0) { cargaSimultanea = 600; cargaEraEstimada = true; }
+    var potenciaInversor = Math.ceil(cargaSimultanea * 1.25 / 100) * 100;
+    if (potenciaInversor < 800) potenciaInversor = 800;
+
+    var totalBaterias = 0, bancoCapacidadRealAh = 0, autonomiaReal = 0, bateriasSerie = 0, bateriasParalelo = 0, voltajeBateria = 0, capacidadBateriaAh = 0;
+    if (tipoSistema !== 'red') {
+      var diasAutonomia = parseInt(document.getElementById('diasAutonomia').value);
+      var dod = parseFloat(document.getElementById('dod').value);
+      voltajeBateria = parseInt(document.getElementById('voltajeBateria').value);
+      capacidadBateriaAh = parseInt(document.getElementById('capacidadBateria').value);
+
+      var energiaNecesariaWh = (consumoDiarioWh * diasAutonomia) / dod;
+      var capacidadTotalAh = energiaNecesariaWh / voltajeSistema;
+      bateriasParalelo = Math.ceil(capacidadTotalAh / capacidadBateriaAh);
+      bateriasSerie = Math.ceil(voltajeSistema / voltajeBateria);
+      totalBaterias = bateriasSerie * bateriasParalelo;
+      bancoCapacidadRealAh = bateriasParalelo * capacidadBateriaAh;
+      var bancoCapacidadRealWh = bancoCapacidadRealAh * voltajeSistema;
+      autonomiaReal = (bancoCapacidadRealWh * dod) / consumoDiarioWh;
+    }
+
+    var costoPanel = numPaneles * potenciaPanel * 7.5;
+    var costoControlador = numControladores * 4000;
+    var costoInversor = potenciaInversor * 4;
+    var costoBaterias = totalBaterias * capacidadBateriaAh * 60;
+    var costoInstalacion = (costoPanel + costoControlador + costoInversor + costoBaterias) * 0.25;
+    var costoTotal = costoPanel + costoControlador + costoInversor + costoBaterias + costoInstalacion;
+
+    ultimoResultado = {
+      fecha: new Date().toISOString(),
+      lat: lat, lng: lng, hsp: hsp,
+      consumoDiarioWh: consumoDiarioWh,
+      numPaneles: numPaneles, potenciaPanel: potenciaPanel, potenciaInstalada: potenciaInstalada,
+      tipoSistema: tipoSistema, voltajeSistema: voltajeSistema,
+      numControladores: numControladores, potenciaInversor: potenciaInversor,
+      totalBaterias: totalBaterias, bateriasSerie: bateriasSerie, bateriasParalelo: bateriasParalelo,
+      voltajeBateria: voltajeBateria, capacidadBateriaAh: capacidadBateriaAh,
+      bancoCapacidadRealAh: bancoCapacidadRealAh, autonomiaReal: autonomiaReal,
+      costoTotal: costoTotal
+    };
+
+    var html = '';
+    html += '<div class="seccion-tit">⚡ Consumo</div>';
+    html += '<div class="res-item"><span>Consumo diario</span><span class="res-val">' + (consumoDiarioWh/1000).toFixed(2) + ' kWh</span></div>';
+    html += '<div class="res-item"><span>HSP usado</span><span class="res-val">' + hsp + '</span></div>';
+
+    html += '<div class="seccion-tit">📐 Paneles</div>';
+    html += '<div class="res-item"><span>Panel</span><span class="res-val">' + potenciaPanel + 'W / ' + corrientePanel.toFixed(1) + 'A</span></div>';
+    html += '<div class="res-item"><span>Número de paneles</span><span class="res-val">' + numPaneles + '</span></div>';
+    html += '<div class="res-item"><span>Potencia instalada</span><span class="res-val">' + potenciaInstalada + ' W</span></div>';
+
+    if (tipoSistema !== 'red') {
+      html += '<div class="seccion-tit">⚙️ Controlador MPPT</div>';
+      html += '<div class="res-item"><span>Número de controladores (60A)</span><span class="res-val">' + numControladores + '</span></div>';
+    }
+
+    html += '<div class="seccion-tit">🔌 Inversor</div>';
+    html += '<div class="res-item"><span>Carga simultánea' + (cargaEraEstimada ? ' (estimada)' : '') + '</span><span class="res-val">' + cargaSimultanea.toFixed(0) + ' W</span></div>';
+    html += '<div class="res-item"><span>Inversor recomendado</span><span class="res-val">' + potenciaInversor + ' W</span></div>';
+
+    if (tipoSistema !== 'red') {
+      html += '<div class="seccion-tit">🔋 Banco de Baterías</div>';
+      html += '<div class="res-item"><span>Configuración</span><span class="res-val">' + bateriasSerie + ' serie × ' + bateriasParalelo + ' paralelo</span></div>';
+      html += '<div class="res-item"><span>Total de baterías</span><span class="res-val">' + totalBaterias + '</span></div>';
+      html += '<div class="res-item"><span>Capacidad real</span><span class="res-val">' + bancoCapacidadRealAh + ' Ah</span></div>';
+      html += '<div class="res-item"><span>Autonomía real</span><span class="res-val">' + autonomiaReal.toFixed(1) + ' días</span></div>';
+    }
+
+    html += '<div class="res-total">💰 Inversión estimada: $' + Math.round(costoTotal).toLocaleString('es-MX') + ' MXN</div>';
+    html += '<p class="hint" style="text-align:center;">Cálculo de referencia. Un instalador certificado debe validar el diseño final.</p>';
+
+    document.getElementById('resultadosContenido').innerHTML = html;
+    document.getElementById('resultadoCard').style.display = 'block';
+    document.getElementById('qrBox').style.display = 'none';
+    document.getElementById('resultadoCard').scrollIntoView({ behavior: 'smooth' });
+    mostrarToast('✅ Sistema calculado');
+  }
+
+  // ---------- GUARDAR EN ESTE TELÉFONO ----------
+  function guardarCalculo() {
+    if (!ultimoResultado) { mostrarToast('⚠️ Calcula primero'); return; }
+    try {
+      var lista = JSON.parse(localStorage.getItem('calculos_solares') || '[]');
+      lista.unshift(ultimoResultado);
+      lista = lista.slice(0, 20); // máximo 20 guardados
+      localStorage.setItem('calculos_solares', JSON.stringify(lista));
+      renderGuardados();
+      mostrarToast('💾 Guardado en este teléfono');
+    } catch (e) {
+      mostrarToast('⚠️ No se pudo guardar (memoria llena o navegador privado)');
+    }
+  }
+
+  function renderGuardados() {
+    var cont = document.getElementById('listaGuardados');
+    var lista = [];
+    try { lista = JSON.parse(localStorage.getItem('calculos_solares') || '[]'); } catch(e) {}
+    if (lista.length === 0) {
+      cont.innerHTML = '<p class="hint">Aún no has guardado ningún cálculo.</p>';
+      return;
+    }
+    cont.innerHTML = '';
+    lista.forEach(function(r, i) {
+      var div = document.createElement('div');
+      div.className = 'guardado-item';
+      var fecha = new Date(r.fecha).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
+      div.innerHTML =
+        '<span><strong>' + r.numPaneles + ' paneles · ' + r.potenciaInversor + 'W</strong><br><span class="meta">' + fecha + ' · $' + Math.round(r.costoTotal).toLocaleString('es-MX') + ' MXN</span></span>' +
+        '<span class="acciones"><span onclick="eliminarGuardado(' + i + ')">🗑️</span></span>';
+      cont.appendChild(div);
+    });
+  }
+
+  function eliminarGuardado(i) {
+    try {
+      var lista = JSON.parse(localStorage.getItem('calculos_solares') || '[]');
+      lista.splice(i, 1);
+      localStorage.setItem('calculos_solares', JSON.stringify(lista));
+      renderGuardados();
+      mostrarToast('🗑️ Eliminado');
+    } catch(e) {}
+  }
+
+  // ---------- QR PARA COMPARTIR ----------
+  function generarQR() {
+    if (!ultimoResultado) { mostrarToast('⚠️ Calcula primero'); return; }
+    var params = new URLSearchParams();
+    Object.keys(ultimoResultado).forEach(function(k) {
+      if (ultimoResultado[k] !== null && ultimoResultado[k] !== undefined) {
+        params.set(k, ultimoResultado[k]);
+      }
+    });
+    var url = window.location.origin + window.location.pathname + '?' + params.toString();
+    var canvas = document.getElementById('qrCanvas');
+    QRCode.toCanvas(canvas, url, { width: 200 }, function(err) {
+      if (err) { mostrarToast('⚠️ Error generando QR'); return; }
+      document.getElementById('qrBox').style.display = 'block';
+      mostrarToast('✅ QR listo para escanear');
+    });
+  }
+
+  // ---------- VISTA DE RESULTADO COMPARTIDO (al escanear el QR) ----------
+  function revisarParametrosCompartidos() {
+    var params = new URLSearchParams(window.location.search);
+    if (!params.has('numPaneles')) return;
+
+    document.getElementById('bannerCompartido').style.display = 'block';
+
+    ultimoResultado = {
+      fecha: params.get('fecha'),
+      numPaneles: params.get('numPaneles'),
+      potenciaPanel: params.get('potenciaPanel'),
+      potenciaInstalada: params.get('potenciaInstalada'),
+      tipoSistema: params.get('tipoSistema'),
+      potenciaInversor: params.get('potenciaInversor'),
+      totalBaterias: params.get('totalBaterias') || 0,
+      bateriasSerie: params.get('bateriasSerie') || 0,
+      bateriasParalelo: params.get('bateriasParalelo') || 0,
+      bancoCapacidadRealAh: params.get('bancoCapacidadRealAh') || 0,
+      autonomiaReal: parseFloat(params.get('autonomiaReal')) || 0,
+      costoTotal: parseFloat(params.get('costoTotal')) || 0,
+      consumoDiarioWh: parseFloat(params.get('consumoDiarioWh')) || 0,
+      hsp: params.get('hsp')
+    };
+
+    var r = ultimoResultado;
+    var html = '';
+    html += '<div class="seccion-tit">⚡ Consumo</div>';
+    html += '<div class="res-item"><span>Consumo diario</span><span class="res-val">' + (r.consumoDiarioWh/1000).toFixed(2) + ' kWh</span></div>';
+    html += '<div class="seccion-tit">📐 Paneles</div>';
+    html += '<div class="res-item"><span>Número de paneles</span><span class="res-val">' + r.numPaneles + ' × ' + r.potenciaPanel + 'W</span></div>';
+    html += '<div class="seccion-tit">🔌 Inversor</div>';
+    html += '<div class="res-item"><span>Inversor recomendado</span><span class="res-val">' + r.potenciaInversor + ' W</span></div>';
+    if (r.tipoSistema !== 'red') {
+      html += '<div class="seccion-tit">🔋 Baterías</div>';
+      html += '<div class="res-item"><span>Configuración</span><span class="res-val">' + r.bateriasSerie + ' serie × ' + r.bateriasParalelo + ' paralelo</span></div>';
+      html += '<div class="res-item"><span>Autonomía real</span><span class="res-val">' + r.autonomiaReal.toFixed(1) + ' días</span></div>';
+    }
+    html += '<div class="res-total">💰 Inversión estimada: $' + Math.round(r.costoTotal).toLocaleString('es-MX') + ' MXN</div>';
+
+    document.getElementById('resultadosContenido').innerHTML = html;
+    document.getElementById('resultadoCard').style.display = 'block';
+    document.getElementById('resultadoCard').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function empezarDeCero() {
+    window.location.href = window.location.origin + window.location.pathname;
+  }
+
+  // ---------- EMPRESAS ----------
+  function renderEmpresas() {
+    var cont = document.getElementById('listaEmpresas');
+    cont.innerHTML = '';
+    var lista = obtenerEmpresasVisibles();
+    if (lista.length === 0) {
+      cont.innerHTML = '<p class="hint">Todavía no hay empresas registradas en tu zona.</p>';
+      return;
+    }
+    lista.forEach(function(e) {
+      var div = document.createElement('div');
+      div.className = 'empresa';
+      div.innerHTML =
+        '<span><span class="nombre">' + e.nombre + '</span><br><span class="zona">' + e.zona + '</span></span>' +
+        '<a href="#" onclick="enviarWhatsapp(\'' + e.whatsapp + '\');return false;">Enviar resultado</a>';
+      cont.appendChild(div);
+    });
+  }
+
+  // Mientras no hay Apps Script conectado, mostramos las que el propio
+  // dispositivo registró (modo demo/local). Cuando se conecte la URL,
+  // esta función se cambia a leer desde la nube (ver sincronizarEmpresas()).
+  function obtenerEmpresasVisibles() {
+    try {
+      return JSON.parse(localStorage.getItem('empresas_registradas_local') || '[]');
+    } catch (e) { return []; }
+  }
+
+  function registrarEmpresa() {
+    var nombre = document.getElementById('regNombre').value.trim();
+    var zona = document.getElementById('regZona').value.trim();
+    var whatsapp = document.getElementById('regWhatsapp').value.trim();
+    var correo = document.getElementById('regCorreo').value.trim();
+
+    if (!nombre || !zona || !whatsapp) {
+      mostrarToast('⚠️ Completa nombre, zona y WhatsApp');
+      return;
+    }
+
+    var registro = { nombre: nombre, zona: zona, whatsapp: whatsapp, correo: correo, fecha: new Date().toISOString() };
+
+    if (APPS_SCRIPT_URL) {
+      // ---- MODO CONECTADO: se envía directo a tu Google Sheet ----
+      fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ accion: 'registrar_empresa', datos: registro })
+      }).then(function() {
+        mostrarToast('✅ Solicitud enviada — quedará pendiente de tu aprobación');
+        limpiarFormularioRegistro();
+      }).catch(function() {
+        mostrarToast('⚠️ No se pudo enviar, se guardó local para reintentar después');
+        guardarRegistroLocalPendiente(registro);
+        limpiarFormularioRegistro();
+      });
+    } else {
+      // ---- MODO LOCAL: aún no hay Apps Script conectado ----
+      guardarRegistroLocalPendiente(registro);
+      mostrarToast('💾 Guardado en este teléfono — se sincronizará cuando conectes la nube');
+      limpiarFormularioRegistro();
+    }
+  }
+
+  function guardarRegistroLocalPendiente(registro) {
+    try {
+      var pendientes = JSON.parse(localStorage.getItem('empresas_pendientes_sync') || '[]');
+      pendientes.push(registro);
+      localStorage.setItem('empresas_pendientes_sync', JSON.stringify(pendientes));
+    } catch (e) {}
+  }
+
+  function limpiarFormularioRegistro() {
+    document.getElementById('regNombre').value = '';
+    document.getElementById('regZona').value = '';
+    document.getElementById('regWhatsapp').value = '';
+    document.getElementById('regCorreo').value = '';
+  }
+
+  // Cuando definas APPS_SCRIPT_URL y vuelvas a abrir la página, esta función
+  // intenta reenviar cualquier registro que se haya quedado pendiente de sincronizar.
+  function sincronizarPendientesSiHayConexion() {
+    if (!APPS_SCRIPT_URL) return;
+    var pendientes = [];
+    try { pendientes = JSON.parse(localStorage.getItem('empresas_pendientes_sync') || '[]'); } catch (e) {}
+    if (pendientes.length === 0) return;
+
+    pendientes.forEach(function(registro) {
+      fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ accion: 'registrar_empresa', datos: registro })
+      });
+    });
+    localStorage.removeItem('empresas_pendientes_sync');
+    mostrarToast('☁️ Registros pendientes sincronizados a la nube');
+  }
+
+  function actualizarEstadoConexion() {
+    var el = document.getElementById('estadoConexion');
+    if (!el) return;
+    el.textContent = APPS_SCRIPT_URL
+      ? '☁️ Conectado: tu registro se guarda directo en tu base de datos en la nube.'
+      : '⚙️ Modo local: tu registro se guarda en este teléfono mientras conectamos la base de datos en la nube. No se pierde — en cuanto se active la conexión, se sincroniza solo.';
+  }
+
+  function enviarWhatsapp(numero) {
+    if (!ultimoResultado) { mostrarToast('⚠️ Calcula primero'); return; }
+    var r = ultimoResultado;
+    var texto = 'Hola, este es mi cálculo de sistema solar:%0A' +
+      '• Paneles: ' + r.numPaneles + ' x ' + r.potenciaPanel + 'W%0A' +
+      '• Inversor: ' + r.potenciaInversor + 'W%0A' +
+      (r.totalBaterias ? '• Baterías: ' + r.totalBaterias + ' (' + r.bateriasSerie + 'S' + r.bateriasParalelo + 'P)%0A' : '') +
+      '• Inversión estimada: $' + Math.round(r.costoTotal).toLocaleString('es-MX') + ' MXN';
+    window.open('https://wa.me/' + numero + '?text=' + texto, '_blank');
+  }
+
+  // ---------- UTILS ----------
+  function limpiarTodo() {
+    document.getElementById('consumoMensual').value = '';
+    document.getElementById('cargaSimultanea').value = '';
+    document.getElementById('hspManual').value = '';
+    aparatos = {};
+    renderAparatos();
+    actualizarTodo();
+    document.getElementById('resultadoCard').style.display = 'none';
+    mostrarToast('🗑️ Limpio');
+  }
+
+  function mostrarToast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(window._tt);
+    window._tt = setTimeout(function() { t.classList.remove('show'); }, 2600);
+  }
+
+  // ---------- INIT ----------
+  window.addEventListener('DOMContentLoaded', function() {
+    renderAparatos();
+    renderEmpresas();
+    renderGuardados();
+    initMap();
+    actualizarTodo();
+    revisarParametrosCompartidos();
+    actualizarEstadoConexion();
+    sincronizarPendientesSiHayConexion();
+  });
+</script>
+
+  <!-- BOTÓN FLOTANTE COMPARTIR -->
+<div style="position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+  
+  <!-- Botón WhatsApp -->
+  <button onclick="compartirWhatsApp()" style="
+    width:52px;height:52px;border-radius:50%;background:#25D366;color:#fff;
+    font-size:22px;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(37,211,102,.4);
+    display:flex;align-items:center;justify-content:center;
+  " title="Compartir por WhatsApp">💬</button>
+
+  <!-- Botón QR -->
+  <button onclick="generarQRFloating()" style="
+    width:52px;height:52px;border-radius:50%;background:#f5a623;color:#0a0a0a;
+    font-size:20px;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(245,166,35,.4);
+    display:flex;align-items:center;justify-content:center;
+  " title="Generar código QR">📱</button>
+
+</div>
+
+<!-- Modal QR -->
+<div id="modalQRFloating" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:10000;justify-content:center;align-items:center;padding:20px;" onclick="cerrarQRFloating(event)">
+  <div style="background:#1e293b;padding:24px;border-radius:16px;text-align:center;border:2px solid #f5a623;max-width:320px;width:100%;" onclick="event.stopPropagation()">
+    <h3 style="color:#f5a623;margin-bottom:4px;">📱 Compartir Calculadora</h3>
+    <p style="color:#94a3b8;font-size:11px;margin-bottom:14px;">Escanea este código para abrirla</p>
+    <div id="qrFloatingContainer" style="background:#fff;display:inline-block;padding:10px;border-radius:10px;"></div>
+    <button onclick="cerrarQRFloating()" style="margin-top:14px;padding:10px 24px;background:#ef4444;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;width:100%;">❌ CERRAR</button>
+  </div>
+</div>
+
+<script>
+function compartirWhatsApp() {
+    var url = window.location.href;
+    var texto = '☀️ Calculadora Solar Fotovoltaica%0A%0A' +
+        'Calcula paneles, inversor, baterías y costo estimado.%0A' +
+        'Con GPS, mapa y QR.%0A%0A' +
+        '👉 ' + encodeURIComponent(url);
+    window.open('https://wa.me/?text=' + texto, '_blank');
+}
+
+function generarQRFloating() {
+    var modal = document.getElementById('modalQRFloating');
+    var container = document.getElementById('qrFloatingContainer');
+    container.innerHTML = '';
+    modal.style.display = 'flex';
+    
+    // Usar QRCode si está disponible, si no, usar API externa
+    if (typeof QRCode !== 'undefined') {
+        new QRCode(container, {
+            text: window.location.href,
+            width: 180,
+            height: 180,
+            colorDark: '#0a0e1c',
+            colorLight: '#ffffff'
+        });
+    } else {
+        // Fallback: generar QR con API gratuita
+        var img = document.createElement('img');
+        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(window.location.href);
+        img.style.display = 'block';
+        container.appendChild(img);
+    }
+}
+
+function cerrarQRFloating(event) {
+    if (event && event.target !== document.getElementById('modalQRFloating')) return;
+    document.getElementById('modalQRFloating').style.display = 'none';
+}
+</script>
+</body>
+</html>
